@@ -17,32 +17,54 @@
 
 import cgi
 import webapp2
+import shorten
 from google.appengine.ext import ndb
 
-class Redirect(ndb.Model):
-    short = ndb.StringProperty()
-    target = ndb.StringProperty()
-    create_date = ndb.DateTimeProperty(auto_now_add=True)
-
-class MainHandler(webapp2.RequestHandler):
+class CreateHandler(webapp2.RequestHandler):
     def get(self):
+        hostname = self.request.host
 
+        target = self.request.get('target')
         # TODO: Validate target URL against some rules.
 
-        # TODO: Generate short url.
-        shorturl = "1"
-
-        newUrl = Redirect()
-        newUrl.key
-        newUrl.short = shorturl
-        newUrl.id = shorturl
-        newUrl.target = self.request.get('target')
-
-        newUrl.put()
+        short = shorten.createShort(target)
         
-        self.response.write('http://domain.com/%s' % (newUrl.short))
+
+        # Check it is stored correctly.
+        newTarget = shorten.getTarget(short)
+
+        if (newTarget != target):
+            self.response.write("<br>We have a problem.  Couldn't confirm storage.")
+        else:
+            self.response.write('Your shortened URL : <b>http://%s/%s<b>' 
+                % (hostname, short,))
+
+
+class RedirectHandler(webapp2.RequestHandler):
+    def get(self):
+
+        host = self.request.host
+        short = self.request.path[1:]
+
+        target = shorten.getTarget(short)
+
+        if target:
+          # self.response.write('%s WILL REDIRECT to %s' % (short, target))
+          self.redirect(str(target))
+        else:
+          self.response.write('Sorry, %s is not a registered URL' % (short))
+
+
+class ListHandler(webapp2.RequestHandler):
+    def get(self):
+        all_shorts = shorten.getAll()
+        for s in all_shorts:
+          self.response.write('<br>%s --> %s' % (s.short, s.target))
 
 
 app = webapp2.WSGIApplication([
-    ('/', MainHandler)
+    ('/newUrl', CreateHandler),
+    ('/list', ListHandler),
+    ('/.*', RedirectHandler)
+
 ], debug=True)

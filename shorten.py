@@ -2,7 +2,7 @@ import random
 import string
 from google.appengine.ext import ndb
 
-class Redirect(ndb.Model):
+class RedirectMap(ndb.Model):
     short = ndb.StringProperty()
     target = ndb.StringProperty()
     create_date = ndb.DateTimeProperty(auto_now_add=True)
@@ -10,42 +10,60 @@ class Redirect(ndb.Model):
 # TODO: Don't allow a set of special URLs.
 disallowed_keys = ["newUrl", "stats", "about"]
 
-def genShortKey(self):
+key_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
+
+def genShortKey():
     """ Generate a candidate key. """
     key_length = 10
-    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(key_length))
+    return ''.join(random.SystemRandom().choice(key_chars) for _ in range(key_length))
 
-def getTarget(self, short):
-    """ Given a short url key return the target url or None. """
+def getTarget(short):
+    """ Given a short url key return the target url or None if it 
+      doesn't exist. """
+    # redirect_record = RedirectMap.get_by_id(short)
 
-    redirect_record = Redirect.get_by_id(short)
+    shortKey = ndb.Key(RedirectMap, short)
+
+    # redirect_records = ndb.gql(
+    #    'SELECT * FROM RedirectMap where short = :1', shortKey)
+
+    redirect_record = shortKey.get()
 
     if redirect_record:
-        # TODO: Don't limit to 1 result and throw an error if we see >1.
-        return redirect_record[0].target
+        return redirect_record.target
     else:
         return None
 
-def createShort(self, target):
+def createShort(target):
     """ Create a short url given a target URL. """
 
+    # TODO: This needs concurrency control (gen key, check, write).
     # Find an unused short key.  TODO: Don't try forever.
     while True:
-        candidate=self.genShortKey()
-        if self.getTarget(candidate) is None:
+        candidate=genShortKey()
+        if getTarget(candidate) is None:
             break
 
-    self.writeShort(candidate, target)
+    writeShort(candidate, target)
     return candidate
 
-def writeShort(self, key, target):
+def writeShort(short, target):
     """ Store the association between key and target. """
-    newUrl = Redirect()
-    newUrl.short = key
-    newUrl.id = key
+    shortKey = ndb.Key(RedirectMap, short)
+
+    newUrl = RedirectMap()
+    newUrl.key = shortKey
+    newUrl.short = short
     newUrl.target = target
     newUrl.put()
 
-def getAll(self):
-    all = ndb.gql('SELECT * FROM Redirect LIMIT 100')
-    print all
+def getAll():
+    all = ndb.gql('SELECT * FROM RedirectMap')
+    return all
+
+def shortenTest():
+    """ Simple test to validate desired key uniqueness behavior. """
+    writeShort("abc", "xyz")
+    writeShort("abc", "xyz2")
+
+    return getTarget("abc")
