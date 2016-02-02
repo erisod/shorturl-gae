@@ -14,34 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import cgi
 import webapp2
-from google.appengine.ext import ndb
-
-class Redirect(ndb.Model):
-    short = ndb.StringProperty()
-    target = ndb.StringProperty()
-    create_date = ndb.DateTimeProperty(auto_now_add=True)
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-
-        # TODO: Validate target URL against some rules.
-
-        # TODO: Generate short url.
-        shorturl = "1"
-
-        newUrl = Redirect()
-        newUrl.key
-        newUrl.short = shorturl
-        newUrl.id = shorturl
-        newUrl.target = self.request.get('target')
-
-        newUrl.put()
-        
-        self.response.write('http://domain.com/%s' % (newUrl.short))
-
+        self.response.write('Lets get you a URL')
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler)
