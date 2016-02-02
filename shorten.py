@@ -8,11 +8,11 @@ class RedirectMap(ndb.Model):
     create_date = ndb.DateTimeProperty(auto_now_add=True)
 
 # TODO: Don't allow a set of special URLs.
-disallowed_keys = ["newUrl", "stats", "about"]
+disallowed_keys = ["newUrl", "stats", "about", "list"]
 
 key_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
-def genShortKey():
+def genRandKey():
     """ Generate a candidate key. """
     key_length = 10
     return ''.join(random.SystemRandom().choice(key_chars) for _ in range(key_length))
@@ -34,36 +34,44 @@ def getTarget(short):
     else:
         return None
 
-def createShort(target):
-    """ Create a short url given a target URL. """
+def createShortRandom(target):
+    """ Create a random short url given a target URL. """
 
-    # TODO: This needs concurrency control (gen key, check, write).
-    # Find an unused short key.  TODO: Don't try forever.
-    while True:
-        candidate=genShortKey()
-        if getTarget(candidate) is None:
-            break
+    # TODO: Handle error conditions.
+    # TODO: Limit number of attempts.
 
-    writeShort(candidate, target)
-    return candidate
+    max_attempts = 10
+
+    for x in range(1, max_attempts):
+        candidate=genRandKey()
+        writeShort(candidate, str(target))
+        if getTarget(candidate) == target:
+            return candidate
+
+    return "ERROR -- Handle this better.  Retries exceeded."
+
 
 def writeShort(short, target):
-    """ Store the association between key and target. """
+    """ Store the association between key and target.  Will not overwrite
+        a record so this is not appropriate for edit operations. """
     shortKey = ndb.Key(RedirectMap, short)
 
-    newUrl = RedirectMap()
-    newUrl.key = shortKey
-    newUrl.short = short
-    newUrl.target = target
-    newUrl.put()
+    # This get_or_insert strategy provides concurrency control.
+    entry = RedirectMap().get_or_insert(short, short = short, target=target)
+
+    if (entry.target != target):
+        # TODO: Consider detecting here vs upstream.  The caller needs to
+        # validate the target currently.
+        pass
 
 def getAll():
-    all = ndb.gql('SELECT * FROM RedirectMap')
-    return all
+    # TODO: Limit & paginate this; it will break if there are too many entries.
+    all_redirects = ndb.gql('SELECT * FROM RedirectMap')
+    return all_redirects
 
 def shortenTest():
-    """ Simple test to validate desired key uniqueness behavior. """
-    writeShort("abc", "xyz")
-    writeShort("abc", "xyz2")
+    """ Simple test to validate the datastore doesn't duplicate keys """
+    writeShort("abc", "First value")
+    writeShort("abc", "Last value")
 
     return getTarget("abc")
