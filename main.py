@@ -36,8 +36,9 @@ class CreateHandler(webapp2.RequestHandler):
         if new_target != target:
             self.response.write("<br>We have a problem.  Couldn't confirm storage.")
         else:
-            self.response.write('Your shortened URL : <b>http://%s/%s<b>' 
-                                % (hostname, short,))
+            short_url = "http://%s/%s" % (hostname, short)
+            self.response.write('Your shortened URL : <b><a href="%s">%s</a><b>' 
+                                % (short_url, short_url))
 
 
 class RedirectHandler(webapp2.RequestHandler):
